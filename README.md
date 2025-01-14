@@ -1,4 +1,4 @@
-# **Land Area Search Tool**  
+# **Parcel Finder**  
 A Python tool to search for land areas based on their size and location in France using cadastral data. The project supports filtering of parcels and buildings, leveraging open-source cadastral data and generating map links for easy analysis.
 
 ## **Getting Started**  
@@ -12,7 +12,7 @@ Python 3.8+
     pip install -r requirements.txt
 
 ### **Usage**
-    python parcel.py <city_name> <area> [options]
+    python parcel_finder.py <city_name> <area> [options]
 
     Positional Arguments
         •	city_name:  Name of the city (case-insensitive). 
@@ -24,7 +24,7 @@ Python 3.8+
         •	-s, --min_building_size: Minimum building size to consider (default: 0 m²).
 
 ### **Example**
-    python parcel.py "Basse Goulaine" 800
+    python parcel_finder.py "Basse Goulaine" 800
 
     Searching land with area : 800 m2...
     100%|██████████| 78036/78036 [00:00<00:00, 411339.71it/s]
