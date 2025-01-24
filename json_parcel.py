@@ -5,6 +5,7 @@ import json
 
 from urllib.request import urlretrieve
 from pathlib import Path
+from shapely.geometry import Polygon as ShapelyPolygon
 
 
 class Json:
@@ -91,12 +92,33 @@ class Json:
         with open(file, "r") as f:
             json_polygons = json.load(f)
 
-        for features in json_polygons.get("features", []):
-            geometry = features.get("geometry", {})
-            if geometry["type"] == "MultiPolygon":
-                for coordinates in geometry.get("coordinates", []):
-                    yield coordinates
-            elif geometry["type"] == "Polygon":
-                yield geometry.get("coordinates", [])
+        for feature in json_polygons.get("features", []):
+            geometry = feature.get("geometry", {})
+            geom_type = geometry.get("type")
+            coordinates = geometry.get("coordinates", [])
+
+            if geom_type == "MultiPolygon":
+                for polygon_coords in coordinates:
+                    if not polygon_coords:
+                        continue
+                    exterior = polygon_coords[0]
+                    interiors = polygon_coords[1:]
+                    try:
+                        poly = ShapelyPolygon(exterior, interiors)
+                    except Exception as e:
+                        print(f"Error creating MultiPolygon: {e}")
+                        continue
+                    yield poly
+            elif geom_type == "Polygon":
+                if not coordinates:
+                    continue
+                exterior = coordinates[0]
+                interiors = coordinates[1:]
+                try:
+                    poly = ShapelyPolygon(exterior, interiors)
+                except Exception as e:
+                    print(f"Error creating Polygon: {e}")
+                    continue
+                yield poly
             else:
-                raise ValueError("Unexpected geometry type from JSON file")
+                raise ValueError(f"Unexpected geometry type: {geom_type}")

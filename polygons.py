@@ -1,10 +1,6 @@
-import math
-import itertools
-
 import pyproj
 
 from json_parcel import Json
-from shapely.geometry import Polygon
 
 
 class PolygonCollection:
@@ -34,10 +30,9 @@ class PolygonCollection:
         files_json = json.extract(file_gzip)
 
         for file_path in files_json:
-            for polygons in json.parse(file_path):
-                for polygon in polygons:
-                    p = MapPolygon(polygon)
-                    self.polygon_list.append(p)
+            for shapely_poly in json.parse(file_path):
+                p = MapPolygon(shapely_poly)
+                self.polygon_list.append(p)
 
         return self.polygon_list
 
@@ -64,51 +59,29 @@ class MapPolygon:
     """
         Represents a single polygon with geospatial properties and operations.
     """
-    def __init__(self, coordinates: list):
-        if coordinates[0] != coordinates[-1]:
-            coordinates += [coordinates[0]]
-
-        self.points = [tuple(c) for c in coordinates]
-        self.polygon = Polygon(self.points)
-
-    # Calculate the area of the polygon using a custom formula based on spherical geometry.
-    # Returns the absolute area in square meters.
-    def area2(self):
-        def to_radian(angle):
-            return angle * math.pi / 180
-
-        def iter_points(collections):
-            peeker, items = itertools.tee(collections)
-            next(peeker)
-            while 1:
-                current = next(items)
-                try:
-                    next_val = next(peeker)
-                except StopIteration:
-                    return
-                yield current, next_val
-
-        area = 0
-        for (x, y), (x2, y2) in iter_points(self.points):
-            area += to_radian(x2 - x) * (2 + math.sin(to_radian(y)) + math.sin(to_radian(y2)))
-
-        area *= 6378137 * 6378137 / 2
-
-        return abs(area)
+    def __init__(self, polygon):
+        self.polygon = polygon
 
     # Calculate the geodesic area of the polygon using pyproj.
     # Returns the absolute area in square meters.
     def area(self):
-        # Create a geodesic area calculator using pyproj
         geod = pyproj.Geod(ellps='GRS80')
 
-        # Extract lats and lons
-        lons = [x for x, y in self.points]
-        lats = [y for x, y in self.points]
+        # Calculate exterior area
+        exterior_coords = self.polygon.exterior.coords
+        lons = [x for x, y in exterior_coords]
+        lats = [y for x, y in exterior_coords]
+        total_area, _ = geod.polygon_area_perimeter(lons, lats)
 
-        # Calculate area using geodesic formulas
-        area, _ = geod.polygon_area_perimeter(lons, lats)
-        return abs(area)
+        # Subtract interior areas (holes)
+        for interior in self.polygon.interiors:
+            interior_coords = interior.coords
+            lons_hole = [x for x, y in interior_coords]
+            lats_hole = [y for x, y in interior_coords]
+            hole_area, _ = geod.polygon_area_perimeter(lons_hole, lats_hole)
+            total_area -= hole_area
+
+        return abs(total_area)
 
     # Check if the polygon intersects with another polygon.
     def intersects(self, p):
