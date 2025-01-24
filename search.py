@@ -59,3 +59,63 @@ class ParcelBuildingSearch:
 
         print(f"matches: {len(matches)}")
 
+
+class CombineSearch:
+    def __init__(self, parcels: PolygonCollection, buildings: PolygonCollection, area):
+        self.parcels = parcels
+        self.buildings = buildings
+        self.matches = defaultdict(list)
+        self.area = area
+
+        self.parcels_free = set()
+        self.parcels_withbuilding = dict()
+
+    def search(self):
+        for parcel in self.parcels:
+            if not self.search_for_building(parcel):
+                self.parcels_free.add(parcel)
+
+        for parcel in self.parcels_withbuilding.keys():
+            for parcel_free in self.parcels_free:
+                area = parcel.area() + parcel_free.area()
+                if (self.area - 25) <= area <= (self.area + 25):
+                    if parcel.intersects(parcel_free):
+                        building = self.parcels_withbuilding[parcel]
+                        self.matches[(parcel, parcel_free, area)].append(building)
+
+
+    def search_for_building(self, parcel):
+        for building in self.buildings:
+            if building.area() > 50 and parcel.contains(building):
+                self.parcels_withbuilding[parcel] = building
+                return True
+
+        return False
+
+    def show(self):
+        print('-' * 100)
+
+        matches = self.matches
+
+        for index, key in enumerate(matches.keys()):
+            _, _, area = key
+
+            buildings = matches[key]
+            buildings_areas = [(b, b.area()) for b in buildings]
+            buildings_areas.sort(reverse=True)
+            biggest_building, _ = buildings_areas[0]
+            long, lat = biggest_building.centroid()
+
+            buildings_areas = ["%.0f" % a for a in buildings_areas]
+            print(f"{1 + (index % 100)}: {area:.1f} m2, buildings: {buildings_areas} m2 -> ({long:.5f}, {lat:.5f})")
+
+        print('-' * 100)
+
+        if matches:
+            buildings = [b[0] for b in matches.values() if b]
+            gps = [b.centroid() for b in buildings]
+            longitudes, latitudes = zip(*gps)
+            for url in BingMapsLink(longitudes, latitudes).build_url():
+                print(url)
+
+        print(f"matches: {len(matches)}")
