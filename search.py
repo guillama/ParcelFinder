@@ -33,23 +33,24 @@ class ParcelBuildingSearch:
 
         matches = self.parcel_to_buildings
 
-        for index, parcel_key in enumerate(matches.keys()):
-            _, area = parcel_key
+        for index, (parcel_key, buildings) in enumerate(matches.items()):
+            _, parcel_area = parcel_key
 
-            # Sort buildings list by size (biggest first), then update the dictionary value
-            buildings_areas = [(b.area(), b) for b in matches[parcel_key]]
-            buildings_areas.sort(reverse=True)
-            matches[parcel_key] = [b for (_area, b) in buildings_areas]
+            # Sort buildings by area (biggest first), then update the list
+            sorted_buildings = sorted(buildings, key=lambda b: b.area(), reverse=True)
+            matches[parcel_key] = sorted_buildings
 
-            _area, biggest_building = buildings_areas[0]
+            # Extract largest building's centroid
+            biggest_building = sorted_buildings[0]
             long, lat = biggest_building.centroid()
 
-            buildings_areas_str = ["%.0f" % a for (a, _) in buildings_areas]
-            print(f"{1 + (index % 100)}: {area:.1f} m2, buildings: {buildings_areas_str} m2 -> ({long:.5f}, {lat:.5f})")
+            # Format areas for display
+            areas_str = ["%.0f" % b.area() for b in sorted_buildings]
+            print(f"{1 + (index % 100)}: {parcel_area:.1f} m2, buildings: {areas_str} m2 -> ({long:.5f}, {lat:.5f})")
 
         print('-' * 100)
 
-        # Get the first element of the previously sorted list of biggest buildings
+        # Generate Bing Maps URLs for all largest buildings
         buildings = [b[0] for b in matches.values() if b]
         building_centroids = [b.centroid() for b in buildings]
         longitudes, latitudes = zip(*building_centroids)
